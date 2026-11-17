@@ -1,0 +1,4 @@
+interface:
+  display_name: "DraftFerry Check"
+  short_description: "Check saved publishing sessions and login needs"
+  default_prompt: "Use $draftferry-check to check my configured platforms and tell me which ones need manual attention."

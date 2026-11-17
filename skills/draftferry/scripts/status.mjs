@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as wait } from 'node:timers/promises';
-import { configuration, inspect, platforms } from './platforms.mjs';
+import { configuration, inspect, inspectAuthRoute, platforms } from './platforms.mjs';
 import { devToStatus } from '../platforms/draftferry-devto/scripts/api.mjs';
 
 const result = (status, reason) => ({ status, reason });
@@ -12,7 +12,13 @@ async function checkPage(context, probe) {
     page = await context.newPage();
     const response = await page.goto(probe.href, { waitUntil: 'domcontentloaded', timeout: 18000 });
     const status = response?.status();
-    if (status === 401 && new URL(page.url()).origin === probe.origin) {
+    const initialUrl = new URL(page.url());
+    const authState = inspectAuthRoute(initialUrl, probe);
+    if (response?.headers?.()?.['cf-mitigated'] === 'challenge') {
+      return result('unknown', 'verification_required');
+    }
+    if (authState) return authState;
+    if (status === 401 && initialUrl.origin === probe.origin) {
       return result('logged_out', 'authentication_required');
     }
     if (status >= 400) return result('unknown', 'platform_http_' + status);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { checkStatus } from './status.mjs';
 import { configuration, inspect } from './platforms.mjs';
+import { checkSummary } from '../draftferry-check/scripts/check.mjs';
 
 const env = { CDP_URL: 'wss://browser.example/test-secret', DRAFTFERRY_BLOGGER_BLOG_ID: '42' };
 
@@ -15,7 +16,7 @@ test('DEV.to requires its API Key even when a CDP session is available', async (
   assert.deepEqual(rows, [{ platform: 'devto', status: 'not_configured', reason: 'missing_api_key' }]);
 });
 
-function fakePage({ url, shown = [], status = 200 }) {
+function fakePage({ url, shown = [], status = 200, headers = {} }) {
   const matching = new Set(shown);
   const locator = predicates => ({
     or: other => locator([...predicates, ...other.predicates]),
@@ -29,7 +30,7 @@ function fakePage({ url, shown = [], status = 200 }) {
     url: () => url,
     locator: selector => locator([selector]),
     getByRole: (role, { name }) => locator([role + ':' + name]),
-    goto: async () => ({ status: () => status }),
+    goto: async () => ({ status: () => status, headers: () => headers }),
     close: async function () { this.closed = true; },
   };
 }
@@ -58,6 +59,26 @@ test('a shared CDP session reports logged-in, logged-out and ambiguous results w
   assert.ok(tabs.every(page => page.closed));
   assert.equal(existing.closed, false);
   assert.doesNotMatch(JSON.stringify(rows), /test-secret|private=value/);
+});
+
+test('saved-session checks distinguish a verification challenge from an ordinary HTTP 403', async () => {
+  const settings = { ...env, DRAFTFERRY_MEDIUM_CDP_URL: 'wss://browser.example/separate-secret' };
+  const pages = {
+    [settings.DRAFTFERRY_MEDIUM_CDP_URL]: fakePage({
+      url: 'https://medium.com/me/stories', status: 403, headers: { 'cf-mitigated': 'challenge' },
+    }),
+    [settings.CDP_URL]: fakePage({ url: 'https://www.tumblr.com/dashboard', status: 403 }),
+  };
+  const rows = await checkStatus(['medium', 'tumblr'], settings, async endpoint => ({
+    contexts: () => [{ newPage: async () => pages[endpoint] }],
+    close: async () => {},
+  }));
+  const report = rows.map(row => checkSummary(row, settings));
+  assert.deepEqual(report.map(row => [row.action, row.connectionSetting]), [
+    ['complete_browser_verification', 'DRAFTFERRY_MEDIUM_CDP_URL'],
+    ['inspect_session', 'CDP_URL'],
+  ]);
+  assert.doesNotMatch(JSON.stringify(report), /test-secret|separate-secret/);
 });
 
 test('a platform override is isolated from the shared session and connection errors are sanitized', async () => {

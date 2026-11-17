@@ -2,6 +2,7 @@ const role = (type, name) => page => page.getByRole(type, { name, exact: true })
 const css = selector => page => page.locator(selector);
 const on = (url, routes) => routes.test(url.pathname);
 const auth = /(?:^|\/)(?:sign[_-]?in|log[_-]?in|sign[_-]?up|register)(?:\/|$)/i;
+const challenge = /(?:^|\/)(?:two[-_]factor|challenge|checkpoint|mfa|captcha)(?:\/|$)|^\/account\/access(?:\/|$)/i;
 
 function httpsOrigin(value) {
   const url = new URL(value);
@@ -30,7 +31,7 @@ const probes = {
     return fixed(origin + '/home', /^\/home\/?$/, [
       css('nav a[href^="/@"]'),
       role('button', /^New Post$/i),
-    ]);
+    ], { signedOut: css('a[href^="/auth/sign_in"]') });
   },
   medium: () => fixed('https://medium.com/me/stories', /^\/me\/stories(?:\/|$)/, [
     page => role('heading', 'Your stories')(page).or(role('heading', 'Stories')(page)),
@@ -58,7 +59,9 @@ const probes = {
   },
   beehiiv: () => fixed('https://app.beehiiv.com/posts', /^\/posts\/?$/, [
     page => role('button', 'Start writing')(page).or(role('link', 'Start writing')(page))
-      .or(role('button', 'New post')(page)).or(role('link', 'New post')(page)),
+      .or(role('button', 'New post')(page)).or(role('link', 'New post')(page))
+      .or(role('button', 'New')(page)),
+    css('a[href="/posts/template-library"]'),
   ], { authOrigins: ['https://www.beehiiv.com'] }),
   hashnode: () => fixed('https://hashnode.com/', /^\/$/, [
     page => role('link', 'Drafts')(page).or(role('heading', 'Drafts')(page)),
@@ -68,10 +71,18 @@ const probes = {
 
 export const platforms = [...Object.keys(probes), 'devto'];
 
+export function credentialSetting(platform, env) {
+  if (platform === 'devto') return env.DEV_TO_API_KEY?.trim() ? 'DEV_TO_API_KEY' : null;
+  const dedicated = 'DRAFTFERRY_' + platform.toUpperCase() + '_CDP_URL';
+  if (env[dedicated]?.trim()) return dedicated;
+  if (platform === 'x' && env.X_CDP_URL?.trim()) return 'X_CDP_URL';
+  return env.CDP_URL?.trim() ? 'CDP_URL' : null;
+}
+
 export function configuration(platform, env) {
-  const key = 'DRAFTFERRY_' + platform.toUpperCase() + '_CDP_URL';
-  const endpoint = env[key] || (platform === 'x' && env.X_CDP_URL) || env.CDP_URL;
-  if (!endpoint?.trim()) return { status: 'not_configured', reason: 'missing_cdp_endpoint' };
+  const key = credentialSetting(platform, env);
+  if (!key) return { status: 'not_configured', reason: 'missing_cdp_endpoint' };
+  const endpoint = env[key];
   let probe;
   try { probe = probes[platform](env); }
   catch { return { status: 'not_configured', reason: 'invalid_platform_target' }; }
@@ -83,10 +94,9 @@ async function visible(locator) {
   return locator.filter({ visible: true }).first().isVisible();
 }
 
-export async function inspect(page, probe) {
-  const url = new URL(page.url());
+export function inspectAuthRoute(url, probe) {
   if ([probe.origin, ...(probe.authOrigins ?? [])].includes(url.origin)) {
-    if (on(url, /(?:^|\/)(?:two_factor|challenge|checkpoint)(?:\/|$)/i)) {
+    if (on(url, challenge)) {
       return { status: 'unknown', reason: 'verification_required' };
     }
     if (on(url, auth)) {
@@ -99,6 +109,12 @@ export async function inspect(page, probe) {
       return { status: 'logged_out', reason: 'sign_in_required' };
     }
   }
+}
+
+export async function inspect(page, probe) {
+  const url = new URL(page.url());
+  const authState = inspectAuthRoute(url, probe);
+  if (authState) return authState;
   if (url.origin !== probe.origin) return;
   if (probe.signedOut && await visible(probe.signedOut(page))) {
     return { status: 'logged_out', reason: 'sign_in_required' };

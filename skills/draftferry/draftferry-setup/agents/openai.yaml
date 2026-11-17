@@ -1,0 +1,4 @@
+interface:
+  display_name: "DraftFerry Setup"
+  short_description: "Configure publishing accounts and verify access"
+  default_prompt: "Use $draftferry-setup to configure my publishing platforms and check account access."

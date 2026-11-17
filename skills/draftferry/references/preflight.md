@@ -1,5 +1,7 @@
 # Account preflight
 
+Use [DraftFerry Check](../draftferry-check/SKILL.md) to monitor only the platforms saved during setup. Use the commands below for an explicit platform list or an all-platform preflight.
+
 Run these commands from the DraftFerry Skill directory with Node.js 22+.
 
 ```sh
