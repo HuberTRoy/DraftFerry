@@ -19,7 +19,7 @@ async function routes(ctx){await ctx.route('**/*',async route=>{
  if(u.pathname==='/fixture/save'){saved=JSON.parse(req.postData());return route.fulfill({body:'ok'});}
  if(u.pathname==='/fixture/mode'){mode=req.postData();return route.fulfill({body:'ok'});}
  if(u.pathname==='/fixture/publish'){assert.equal(mode,'Web only');confirms++;return route.fulfill({body:'ok'});}
- if(u.pathname==='/posts/template-library')return fulfill(`<button onclick="document.querySelector('a').hidden=false">New</button><a hidden href="${edit}">Blank draft post</a>`);
+ if(u.pathname==='/posts/template-library')return fulfill(`<nav><button>New</button></nav><button aria-haspopup="menu" onclick="document.querySelector('a').hidden=false">New</button><a hidden href="${edit}">Blank draft post</a>`);
  if(u.pathname==='/posts')return fulfill('<h1>Posts</h1>');
  if(u.pathname===`/posts/${id}`)return fulfill(`<p>Published</p><input name="post_url" value="${publicUrl}">`);
  if(u.pathname===`/posts/${id}/edit`)return fulfill(`
@@ -42,13 +42,13 @@ try{
  const args=['--blog','fixture','--content',file,'--cdp',endpoint,'--artifacts-dir',dir];
  await main([...args,'--dry-run'],{connectBrowser:async()=>wrapper});assert.equal(confirms,0);
  saved={title:'New post',html:''};await main(args,{connectBrowser:async()=>wrapper});assert.equal(confirms,1);
- await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/已有提交记录/);assert.equal(confirms,1);
+ await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/A submission receipt already exists/);assert.equal(confirms,1);
  await writeFile(file,JSON.stringify({...article,title:'Changed title',html:article.html+'<p>Changed</p>'}));
  saved={title:'New post',html:''};corrupt=true;
- await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/公开页面缺少完整正文/);assert.equal(confirms,2);
+ await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/The public page does not contain the full article body./);assert.equal(confirms,2);
  const receipts=await Promise.all((await readdir(dir)).filter(f=>/^post-.*\.json$/.test(f)).map(async f=>JSON.parse(await readFile(join(dir,f),'utf8'))));
  assert.ok(receipts.some(r=>r.status==='published'));assert.ok(receipts.some(r=>r.status==='unknown'));
- await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/尚未确认/);assert.equal(confirms,2);
+ await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/Unconfirmed submission/);assert.equal(confirms,2);
  console.log('Fixture passed: saved rich text, web-only mode, one final confirmation, anonymous verification, duplicate and unknown guards. No live publication.');
 }catch(e){console.error(safeError(e).split(endpoint).join('[CDP REDACTED]'));process.exitCode=1;}
 finally{await context?.close();await browser?.close();await rm(dir,{recursive:true,force:true});}

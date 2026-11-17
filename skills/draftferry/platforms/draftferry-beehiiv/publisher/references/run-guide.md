@@ -13,4 +13,6 @@ Use `--blog-url` for a custom publication domain. The script checks the destinat
 
 `--prepare-only` writes a local article artifact. `--dry-run` creates a saved beehiiv draft. For requested web publication, run without either flag and verify the permalink in the receipt.
 
+Use `--draft-url` with a saved beehiiv editor URL to publish an existing draft from the same input. The publisher checks its title, body, links, and publication before submitting.
+
 Keep receipts in `artifacts/beehiiv/`. For an uncertain submission, inspect the platform and existing receipt before retrying.

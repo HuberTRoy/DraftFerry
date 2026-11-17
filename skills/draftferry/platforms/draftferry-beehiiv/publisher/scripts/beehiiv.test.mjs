@@ -8,14 +8,14 @@ import { main, safeError } from './beehiiv-post.mjs';
 const provided = ['--blog','sample-newsletter','--content','-','--prepare-only'];
 test('Publication and input modes are explicit; unsupported modes fail',()=>{
   assert.equal(parseOptions(provided).content,'-');
-  assert.throws(()=>parseOptions(['--blog','bad/slug','--content','-','--prepare-only']),/域名/);
+  assert.throws(()=>parseOptions(['--blog','bad/slug','--content','-','--prepare-only']),/publication subdomain/);
   assert.throws(()=>parseOptions([...provided,'--markdown','article.md']),/Unknown option/);
-  assert.throws(()=>parseOptions([...provided,'--html','article.html','--title','x']),/提供一个文章输入/);
-  assert.throws(()=>parseOptions([...provided,'--dry-run']),/不能同时/);
+  assert.throws(()=>parseOptions([...provided,'--html','article.html','--title','x']),/Provide exactly one article input/);
+  assert.throws(()=>parseOptions([...provided,'--dry-run']),/Choose either/);
   assert.throws(()=>parseOptions(['--blog','123','--content','-','--cdp','bad']),/CDP/);
   assert.equal(parseOptions(provided)['blog-url'],'https://sample-newsletter.beehiiv.com/');
   for(const root of ['http://example.com/','https://user:pass@example.com/','https://example.com/?token=x','https://example.com/#fragment','https://example.com/sub/']) {
-    assert.throws(()=>parseOptions([...provided,'--blog-url',root]),/根地址/);
+    assert.throws(()=>parseOptions([...provided,'--blog-url',root]),/HTTPS blog root URL/);
   }
   assert.equal(parseOptions([...provided,'--blog-url','https://newsletter.example.com'])['blog-url'],'https://newsletter.example.com/');
 });
@@ -24,7 +24,7 @@ test('HTML is retained, plain text escaped, no Markdown link text is synthesized
   assert.equal(prepareArticle({title:'Title',html},{source:'provided'}).html,html);
   const p=prepareArticle({title:'Title',body:'A < B & C\nNext\n\nParagraph'},{source:'provided'});
   assert.equal(p.html,'<p>A &lt; B &amp; C<br>Next</p><p>Paragraph</p>');
-  assert.throws(()=>prepareArticle({title:'Title',html,body:'mixed'},{source:'provided'}),/不能混用/);
+  assert.throws(()=>prepareArticle({title:'Title',html,body:'mixed'},{source:'provided'}),/Choose either html or body/);
 });
 test('prepare-only and uncertain receipts never connect or publish',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'beehiiv-unit-'));
@@ -41,7 +41,7 @@ test('prepare-only and uncertain receipts never connect or publish',async()=>{
     assert.match(prepared.html, /<h2>Heading<\/h2>/);
     assert.match(prepared.html, /<a href="https:\/\/example.org\/guide">Body<\/a>/);
     await writeFile(join(dir,'post-uncertain.json'),JSON.stringify({blog:'123',status:'unknown'}));
-    await assert.rejects(main([...base,'--cdp','https://example.test'],{connectBrowser}),/尚未确认/);
+    await assert.rejects(main([...base,'--cdp','https://example.test'],{connectBrowser}),/Unconfirmed submission/);
     assert.equal(connections,0);
     assert.equal((await readdir(dir)).some(f=>f.endsWith('.lock')),false);
   }finally{await rm(dir,{recursive:true,force:true});}

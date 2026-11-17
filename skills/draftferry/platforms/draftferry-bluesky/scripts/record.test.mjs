@@ -3,7 +3,7 @@ import test from 'node:test';
 import { postWrite, restorePostLinks } from './record.mjs';
 
 test('identify a Bluesky batch post and compare its complete URL despite the shortened display', () => {
-  const prefix = '原文\n\n';
+  const prefix = 'Café\n\n';
   const abbreviated = 'example.org/articles/sam...';
   const uri = 'https://example.org/articles/sample';
   const request = {

@@ -24,25 +24,25 @@ export async function assertRichBody(locator, expected, editor = false) {
     }),
     structure: [...el.querySelectorAll('h1,h2,h3,h4,h5,h6,li,strong,b,em,i,pre,code,blockquote,table')].map(e => ({ tag: ({B:'STRONG',I:'EM'})[e.tagName] || e.tagName, text: e.textContent.replace(/\s+/g, '') })),
   }), editor);
-  assert.deepEqual(actual, { text: expected.text, links: expected.links, structure: expected.structure }, '富文本正文、链接或格式回读不一致');
+  assert.deepEqual(actual, { text: expected.text, links: expected.links, structure: expected.structure }, 'The rich-text body, links, or formatting differ from the source.');
 }
 export async function fillEditor(page, post) {
   const expected = await page.evaluate(inspectHtml, post.html);
   const title = page.getByRole('textbox', { name: 'Title', exact: true });
   await title.waitFor();
   const body = await bodyEditor(page);
-  if ((await title.inputValue()).trim() || (await body.innerText()).trim()) throw new Error('新文章已有内容，停止以避免覆盖');
+  if ((await title.inputValue()).trim() || (await body.innerText()).trim()) throw new Error('The new article already contains content. Open a blank draft.');
   await title.fill(post.title);
   await body.evaluate((el, html) => {
     el.focus();
     const selection = el.ownerDocument.getSelection();
     const range = el.ownerDocument.createRange(); range.selectNodeContents(el);
     selection.removeAllRanges(); selection.addRange(range);
-    if (!el.ownerDocument.execCommand('insertHTML', false, html)) throw new Error('富文本 HTML 插入失败');
+    if (!el.ownerDocument.execCommand('insertHTML', false, html)) throw new Error('Could not insert the rich-text HTML.');
     el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
     el.dispatchEvent(new Event('change', { bubbles: true })); el.blur();
   }, expected.html);
-  if (await title.inputValue() !== post.title) throw new Error('标题回读失败');
+  if (await title.inputValue() !== post.title) throw new Error('The editor title differs from the source.');
   await assertRichBody(body, expected, true);
   return expected;
 }
@@ -62,7 +62,7 @@ export async function openPublishConfirmation(page) {
   await visibleButton(page, 'Publish').click();
   const dialog = page.getByRole('alertdialog').filter({ visible: true });
   await dialog.waitFor();
-  if (!/Publish post/i.test(await dialog.innerText())) throw new Error('发布确认框不符合预期');
+  if (!/Publish post/i.test(await dialog.innerText())) throw new Error('The publish confirmation dialog did not match the expected dialog.');
   return dialog;
 }
 export { visibleButton };

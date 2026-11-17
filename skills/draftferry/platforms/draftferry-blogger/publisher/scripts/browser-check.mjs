@@ -40,14 +40,14 @@ try{
   await main(args,{connectBrowser:async()=>wrapper});assert.equal(confirms,1);
   const receipt=(await readdir(directory)).find(f=>/^post-.*\.json$/.test(f));
   assert.equal(JSON.parse(await readFile(join(directory,receipt),'utf8')).status,'published');
-  await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/已有提交记录/);assert.equal(confirms,1);
+  await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/A submission receipt already exists/);assert.equal(confirms,1);
   // A different article whose post is public but wrong must leave unknown and block reruns.
   const changed={...article,title:'Changed fixture',html:article.html+'<p>Changed</p>'};await writeFile(file,JSON.stringify(changed));
   saved={title:'',html:''};published=false;corruptPublic=true;
   await assert.rejects(main(args,{connectBrowser:async()=>wrapper}));assert.equal(confirms,2);
   const receipts=await Promise.all((await readdir(directory)).filter(f=>/^post-.*\.json$/.test(f)).map(async f=>JSON.parse(await readFile(join(directory,f),'utf8'))));
   assert.ok(receipts.some(r=>r.status==='unknown'));
-  await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/尚未确认/);assert.equal(confirms,2);
+  await assert.rejects(main(args,{connectBrowser:async()=>wrapper}),/Unconfirmed submission/);assert.equal(confirms,2);
   const page=await context.newPage();await page.goto(postsUrl);
   for(const invalid of ['<script>alert(1)</script><p>Text</p>','<p onclick="alert(1)">Text</p>','<p><a href="javascript:alert(1)">Text</a></p>']) await assert.rejects(page.evaluate(inspectHtml,invalid));
   console.log('Browser fixture checks passed: rich text, saved reload, link masking, draft, single confirmation, public verification, duplicate and unknown guards, unsafe HTML rejection. No live publication.');

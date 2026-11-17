@@ -20,7 +20,7 @@ async function openComposer(page) {
 
   const blocked = await page.evaluate(() => {
     const txt = (document.body && document.body.innerText) || "";
-    return /log in|sign in|登录|注册/i.test(txt);
+    return /log in|sign in|\u767B\u5F55|\u6CE8\u518C/i.test(txt);
   });
 
   if (blocked) {

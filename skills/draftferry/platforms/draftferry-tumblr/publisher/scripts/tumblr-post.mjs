@@ -22,7 +22,7 @@ async function connect(url) {
     try { return await chromium.connectOverCDP(url, { timeout: 60000, noDefaults: true }); }
     catch (error) {
       if (attempt || !/502|503|ECONNRESET|ETIMEDOUT|timeout/i.test(error.message)) throw error;
-      console.log('CDP 暂时不可用，10 秒后重试一次');
+      console.log('CDP is temporarily unavailable. Retrying once in 10 seconds.');
       await sleep(10000);
     }
   }
@@ -38,7 +38,7 @@ async function main() {
   const artifact = join(dir, `${runId}-content.json`);
   await writeFile(artifact, JSON.stringify(article, null, 2), { mode: 0o600 });
   if (values['prepare-only']) {
-    console.log(`文章准备完成：${artifact}`);
+    console.log(`Article prepared: ${artifact}`);
     return;
   }
 
@@ -51,23 +51,23 @@ async function main() {
   let preview = false;
   try {
     const context = browser.contexts()[0];
-    if (!context) throw new Error('CDP 未返回已登录的浏览器 context');
+    if (!context) throw new Error('CDP did not return an existing browser context.');
     page = await context.newPage();
     page.setDefaultTimeout(30000);
     await page.goto('https://www.tumblr.com/new/text', { waitUntil: 'domcontentloaded' });
-    if (new URL(page.url()).origin !== 'https://www.tumblr.com') throw new Error('未进入 Tumblr 编辑器');
+    if (new URL(page.url()).origin !== 'https://www.tumblr.com') throw new Error('Could not open the Tumblr editor.');
     const expected = await page.evaluate(inspectHtml, article.html);
     const modal = page.getByRole('dialog').filter({ has: page.locator('h1[contenteditable="true"]') });
     await modal.waitFor({ state: 'visible' });
     const blogButton = modal.getByRole('button', { name: /^Select a blog\. Current selection is / });
     const selectedBlog = (await blogButton.getAttribute('aria-label')).replace('Select a blog. Current selection is ', '').trim();
-    if (selectedBlog !== values.blog) throw new Error(`当前博客 ${selectedBlog} 与 --blog 不一致，请切换博客`);
-    console.log(`目标博客：${selectedBlog}`);
+    if (selectedBlog !== values.blog) throw new Error(`The selected blog (${selectedBlog}) differs from --blog. Switch to the intended blog.`);
+    console.log(`Target blog: ${selectedBlog}`);
     const titleField = modal.locator('h1[contenteditable="true"]');
     const bodyField = modal.locator('p[contenteditable="true"]').first();
     await bodyField.waitFor({ state: 'visible' });
     const initialText = await modal.locator('[contenteditable="true"]').allTextContents();
-    if (initialText.some(s => plain(s))) throw new Error('编辑器已有内容，已停止以避免覆盖');
+    if (initialText.some(s => plain(s))) throw new Error('The editor already contains content. Open a blank draft.');
 
     await titleField.fill(article.title);
     await bodyField.click();
@@ -83,23 +83,23 @@ async function main() {
       const body = fields.filter(field => field !== title && !field.querySelector('[contenteditable="true"]'));
       return body.map(field => field.textContent).join('').replace(/[\s\uFEFF\u200B]/g, '') === text;
     }, expected, { timeout: 10000 });
-    if ((await titleField.innerText()).trim() !== article.title) throw new Error('标题回读不一致');
+    if ((await titleField.innerText()).trim() !== article.title) throw new Error('The editor title differs from the source.');
     const expectedLinks = expected.links;
     const actualLinks = await modal.locator('[contenteditable="true"] a').evaluateAll(anchors =>
       anchors.map(a => ({ href: a.href, label: a.textContent.trim() })));
-    if (JSON.stringify(actualLinks) !== JSON.stringify(expectedLinks)) throw new Error('链接回读不一致');
+    if (JSON.stringify(actualLinks) !== JSON.stringify(expectedLinks)) throw new Error('The editor links differ from the source.');
     const postButton = modal.getByRole('button', { name: /^(Post|Post now)$/ });
     await postButton.waitFor({ state: 'visible' });
-    if (!await postButton.isEnabled()) throw new Error('Post 按钮仍不可点击');
+    if (!await postButton.isEnabled()) throw new Error('The Post button is still disabled.');
     const previewPath = join(dir, `${runId}-preview.png`);
     await page.screenshot({ path: previewPath });
     if (values['dry-run']) {
       preview = true;
-      console.log(`编辑器预览：${previewPath}`);
+      console.log(`Editor preview: ${previewPath}`);
       return;
     }
     await writeFile(receipt, JSON.stringify({ status: 'submitting', blog: selectedBlog, title: article.title, runId }, null, 2), { flag: 'wx', mode: 0o600 });
-    // 等待对应创建帖子请求；不以 modal 消失作为唯一成功依据。
+    // Wait for the create-post response to confirm submission.
     const responsePromise = page.waitForResponse(response => {
       const request = response.request();
       const url = new URL(response.url());
@@ -107,17 +107,17 @@ async function main() {
         && /^\/api\/v2\/blog\/[^/]+\/posts\/?$/.test(url.pathname);
     }, { timeout: 45000 }).then(response => ({ response }), error => ({ error }));
     submitted = true;
-    await postButton.click(); // 只提交一次，超时也不会自动重发。
-    if (await confirmPostWithoutTags(page)) console.log('已确认不添加标签继续发布');
+    await postButton.click(); // Submit once. Reconcile a timeout before retrying.
+    if (await confirmPostWithoutTags(page)) console.log('Confirmed submission without tags.');
     const observed = await responsePromise;
-    if (observed.error) throw new Error('提交后未捕获发布响应，结果未知，请检查博客；不要直接重试');
+    if (observed.error) throw new Error('No publish response was received. Check the blog before retrying.');
     const response = observed.response;
-    if (!response.ok()) throw new Error(`发布返回 HTTP ${response.status()}，请检查博客和编辑器`);
+    if (!response.ok()) throw new Error(`The publish request returned HTTP ${response.status()}. Check the blog and editor.`);
     const payload = await response.json().catch(() => null);
     const postId = payload?.response?.id_string || payload?.response?.id || payload?.response?.post?.id;
-    if (!postId) throw new Error('发布响应没有帖子 ID，结果未知，请检查博客');
+    if (!postId) throw new Error('The publish response did not include a post ID. Check the blog before retrying.');
     await writeFile(receipt, JSON.stringify({ status: 'submitted', blog: selectedBlog, title: article.title, postId: String(postId), runId }, null, 2), { mode: 0o600 });
-    console.log(`Tumblr 返回帖子 ID ${postId}。请在目标博客核实内容与公开链接。`);
+    console.log(`Tumblr returned post ID ${postId}. Verify the article and public URL on the target blog.`);
   } catch (error) {
     if (submitted && receipt) await writeFile(receipt, JSON.stringify({ status: 'unknown', blog: values.blog, title: article.title, runId, error: safeError(error) }, null, 2), { mode: 0o600 }).catch(() => {});
     if (page) await page.screenshot({ path: join(dir, `${runId}-error.png`) }).catch(() => {});
