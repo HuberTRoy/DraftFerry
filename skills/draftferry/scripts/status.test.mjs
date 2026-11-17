@@ -20,6 +20,9 @@ function fakePage({ url, shown = [], status = 200, headers = {} }) {
   const matching = new Set(shown);
   const locator = predicates => ({
     or: other => locator([...predicates, ...other.predicates]),
+    and: other => locator([
+      ...predicates.filter(value => matching.has(value) && other.predicates.some(entry => matching.has(entry))),
+    ]),
     predicates,
     filter: () => locator(predicates),
     first: () => locator(predicates),
@@ -29,7 +32,9 @@ function fakePage({ url, shown = [], status = 200, headers = {} }) {
     closed: false,
     url: () => url,
     locator: selector => locator([selector]),
-    getByRole: (role, { name }) => locator([role + ':' + name]),
+    getByRole: (role, { name }) => locator(name instanceof RegExp
+      ? shown.filter(value => value.startsWith(role + ':') && name.test(value.slice(role.length + 1)))
+      : [role + ':' + name]),
     goto: async () => ({ status: () => status, headers: () => headers }),
     close: async function () { this.closed = true; },
   };
@@ -109,4 +114,17 @@ test('configured profiles cannot redirect probes to embedded credentials or arbi
   for (const DRAFTFERRY_MASTODON_ORIGIN of ['https://secret@mastodon.example', 'https://mastodon.example/write']) {
     assert.equal(configuration('mastodon', { ...env, DRAFTFERRY_MASTODON_ORIGIN }).reason, 'invalid_platform_target');
   }
+});
+
+test('Hashnode detects a logged-in homepage with a collapsed sidebar and a signed-out marketing page', async () => {
+  const { probe } = configuration('hashnode', env);
+  const url = 'https://hashnode.com/';
+  for (const heading of ['Your publications', 'Create a publication to start writing']) {
+    assert.deepEqual(await inspect(fakePage({
+      url, shown: ['heading:Good afternoon, Author', 'heading:' + heading, 'button:Toggle Sidebar'],
+    }), probe), { status: 'logged_in', reason: 'authenticated_controls_visible' });
+  }
+  assert.deepEqual(await inspect(fakePage({
+    url, shown: ['link:Start your blog, free', 'a[href="/login"]'],
+  }), probe), { status: 'logged_out', reason: 'sign_in_required' });
 });

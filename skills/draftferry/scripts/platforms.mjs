@@ -64,9 +64,16 @@ const probes = {
     css('a[href="/posts/template-library"]'),
   ], { authOrigins: ['https://www.beehiiv.com'] }),
   hashnode: () => fixed('https://hashnode.com/', /^\/$/, [
-    page => role('link', 'Drafts')(page).or(role('heading', 'Drafts')(page)),
-    page => role('button', 'Write')(page).or(role('link', 'Write')(page)),
-  ], { authOrigins: ['https://auth.hashnode.com'] }),
+    role('heading', /^Good (?:morning|afternoon|evening|night),\s+\S/i),
+    page => role('heading', 'Your publications')(page)
+      .or(role('heading', 'Create a publication to start writing')(page)),
+  ], {
+    authOrigins: ['https://auth.hashnode.com'],
+    signedOut: page => role('link', /^(?:Sign in|Log in)$/i)(page)
+      .or(role('button', /^(?:Sign in|Log in)$/i)(page))
+      .or(role('link', /^(?:Start your blog, free|Start writing)$/i)(page)
+        .and(css('a[href="/login"]')(page))),
+  }),
 };
 
 export const platforms = [...Object.keys(probes), 'devto'];
