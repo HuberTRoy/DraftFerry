@@ -1,4 +1,4 @@
 interface:
   display_name: "DraftFerry"
-  short_description: "Check browser sessions and route cross-platform posts"
+  short_description: "Publish one Markdown article across your chosen platforms"
   default_prompt: "Use $draftferry to check the login state for my distribution platforms."

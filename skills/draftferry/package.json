@@ -1,5 +1,6 @@
 {
   "name": "draftferry",
+  "license": "GPL-3.0-only",
   "private": true,
   "engines": {
     "node": ">=22"

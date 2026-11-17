@@ -1,6 +1,6 @@
 ---
 name: draftferry
-description: Sync a supplied Markdown article to selected publishing and social platforms. Check authenticated CDP sessions, prepare platform-ready content, or run the bundled publisher for a requested destination.
+description: Cross-post a Markdown article to selected blogging, newsletter, and social platforms. Use when the user wants to check which saved destinations are ready, prepare articles or short posts, create drafts or previews where supported, or publish and verify the resulting public links. Browser publishers reuse signed-in sessions through CDP, and DEV.to uses an API key.
 ---
 
 # DraftFerry
