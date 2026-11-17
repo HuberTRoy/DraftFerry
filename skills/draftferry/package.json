@@ -1,0 +1,15 @@
+{
+  "name": "draftferry",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright": "1.64.0",
+    "marked": "17.0.6",
+    "yaml": "2.9.0"
+  }
+}

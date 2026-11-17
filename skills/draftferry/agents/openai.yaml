@@ -1,0 +1,4 @@
+interface:
+  display_name: "DraftFerry"
+  short_description: "Check browser sessions and route cross-platform posts"
+  default_prompt: "Use $draftferry to check the login state for my distribution platforms."
