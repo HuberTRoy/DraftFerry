@@ -11,6 +11,8 @@
 
 **写一份 Markdown，按需分发到多个平台。**
 
+![DraftFerry 封面](cover.png)
+
 DraftFerry 是一款开源免费的多平台发布 Skill，适合在多个渠道分享同一篇文章的创作者、开发者和团队。提供一份 Markdown 文件，就可以从十个平台里挑选发布目标。你可以把全文发到 Medium、DEV.to 或 Substack，也可以把文章链接配上短帖，分享到 X、Bluesky 或 Mastodon。
 
 DraftFerry 会检查已配置的平台是否需要登录或人工验证，并按各平台的编辑器准备内容。在支持的平台上，你可以先查看草稿或预览。你发出发布指令后，它会核验公开链接，方便你查看各平台的发布结果。浏览器平台通过 CDP 复用现有登录会话，DEV.to 使用你的 API Key。

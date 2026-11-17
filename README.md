@@ -11,6 +11,8 @@
 
 **Write once in Markdown. Publish to the platforms you choose.**
 
+![DraftFerry cover](cover.png)
+
 DraftFerry is a free, open-source publishing skill for writers, developers, and teams that share the same article across multiple channels. Give it a Markdown file and choose from ten destinations. Publish the full article to places like Medium, DEV.to, or Substack, and share a short post with the article link on X, Bluesky, or Mastodon.
 
 DraftFerry checks your saved destinations for sign-in or manual verification, prepares the content for each platform, and lets you review a draft or preview where supported. When you ask it to publish, it checks the resulting public links so you can see where each post went live. Browser-based publishing uses your existing sessions through CDP, and DEV.to uses your API key.
